@@ -10,19 +10,29 @@
 <body>
     
     <header>
-        <h1>Cloud Project Manager</h1>
-        <p>Azure-Based student management system</p>
+        <div class="header-content">
+            <h1>Cloud Project Manager</h1>
+            <p>Azure-Based student management system</p>
+        </div>
     </header>
 
     <main>
-        <section>
-            <h2>Welcome</h2>
-            <p>Manage your university projects, tasks, and project files in one place.</p>
+        <section class="dashboard-header">
+            <div>
+                <h2>Your Projects</h2>
+                <p>Manage your university projects and tasks.</p>
+            </div>
 
-            <button id="testButton">Test Application</button>
-
-            <p id="result"></p>
+            <button id="addProjectButton">
+                + New Project
+            </button>
         </section>
+
+        <section id="projectsContainer" class="projects-container">
+            <p id="loadingMessage">Loading projects...</p>
+        </section>
+
+        <p id="errorMessage" class="error-message"></p>
     </main>
 
     <script src="app.js"></script>

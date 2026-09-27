@@ -1,21 +1,59 @@
-const button = document.getElementById("testButton");
-const result = document.getElementById("result");
+const projectsContainer = document.getElementById("projectsContainer");
+const errorMessage = document.getElementById("errorMessage");
 
-button.addEventListener("click", async function(){
-    result.textContent = "Connecting to API...";
-
+async function loadingProjects() {
     try {
-        const response = await fetch("/api/status");
-        
+        const response = await fetch("/api/projects");
+
         if(!response.ok){
-            throw new Error("API request failed.")
+            throw new Error("Failed to load your projects.")
         }
 
         const data = await response.json();
 
-        result.textContent = data.message;
+        renderProjects(data.projects);
     } catch (error) {
-        result.textContent = "Unable to connect to API..."
-        console.error(error); 
+        console.error(error);
+
+        projectsContainer.innerHTML = "";
+        errorMessage.textContent = "Unable to load projects";
     }
-});
+}
+
+function renderProjects(projects){
+    projectsContainer.innerHTML = "";
+
+    if(!projects || projects.length === 0){
+        projectsContainer.innerHTML = `
+            <div class="empty-state">
+                <h3>No projects yet</h3>
+                <p>Create your first university project to get started.</p>
+            </div>
+        `;
+        return;
+    }
+
+    projects.forEach(project => {
+        const projectCard = document.createElement("div");
+
+        projectCard.className = "project-card";
+
+        projectCard.innerHTML = `
+        <h3>${project.name}</h3>
+        
+        <p>${project.description || "No description available."}</p>
+        
+        <div class="project-info">
+            <span>Project ID: ${project.id}</span>
+        </div>
+
+        <button class ="open-project-button" data-id="${project.id}">
+            Open project
+        </button>
+        `;
+
+        projectsContainer.appendChild(projectCard);
+    });
+}
+
+loadingProjects();

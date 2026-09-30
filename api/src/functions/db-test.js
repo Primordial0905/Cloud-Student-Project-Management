@@ -28,9 +28,11 @@ app.http("db-test", {
 
             return {
                 status : 500,
-                jsonBody : {
-                    success : false,
-                    message : "Database connection failed"
+                jsonBody: {
+                success: false,
+                message: "Database connection failed",
+                error: error.code || "UNKNOWN",
+                detail: error.originalError?.code || null
                 } 
             };
         }

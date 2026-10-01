@@ -1,39 +1,68 @@
-const {app} = require("@azure/functions");
-const {getDatabaseConnection} = require("../database");
+const { app } = require("@azure/functions");
+const dns = require("dns").promises;
+const net = require("net");
 
 app.http("db-test", {
-    methods: ['GET'],
-    authLevel : "anonymous",
-    route : "db-test",
-
+    methods: ["GET"],
+    authLevel: "anonymous",
     handler: async (request, context) => {
+
+        const host = process.env.SQL_Server;
+        const port = 1433;
+
         try {
-            const pool = await getDatabaseConnection();
+            const dnsResult = await dns.lookup(host);
 
-            const result = await pool
-                .request()
-                .query("SELECT 1 as result");
+            const tcpResult = await new Promise((resolve) => {
+                const socket = new net.Socket();
 
-            return{
-                status : 200,
-                jsonBody: {
-                    success: true,
-                    database : process.env.SQL_Database,
-                    message : "Database connection successful",
-                    result : result.recordset[0].result
-                }
-            };
-        } catch (error) {
-            context.error("Database connection failed: ", error);
+                socket.setTimeout(10000);
+
+                socket.on("connect", () => {
+                    socket.destroy();
+                    resolve({
+                        success: true,
+                        message: "TCP connection successful"
+                    });
+                });
+
+                socket.on("timeout", () => {
+                    socket.destroy();
+                    resolve({
+                        success: false,
+                        message: "TCP connection timeout"
+                    });
+                });
+
+                socket.on("error", (error) => {
+                    socket.destroy();
+                    resolve({
+                        success: false,
+                        message: error.message,
+                        code: error.code
+                    });
+                });
+
+                socket.connect(port, host);
+            });
 
             return {
-                status : 500,
+                status: 200,
                 jsonBody: {
-                success: false,
-                message: "Database connection failed",
-                error: error.code || "UNKNOWN",
-                detail: error.originalError?.code || null
-                } 
+                    host,
+                    dns: dnsResult,
+                    tcp: tcpResult
+                }
+            };
+
+        } catch (error) {
+            return {
+                status: 500,
+                jsonBody: {
+                    success: false,
+                    error: error.message,
+                    code: error.code
+                }
             };
         }
     }

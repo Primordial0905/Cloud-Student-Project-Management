@@ -1,5 +1,12 @@
+/* ========================================
+   Configuration
+======================================== */
 
 const API_BASE = "/api";
+
+/* ========================================
+   Application State
+======================================== */
 
 let projects = [];
 let tasks = [];
@@ -10,7 +17,6 @@ let editingProjectId = null;
 let editingTaskId = null;
 
 let notificationTimer = null;
-
 
 /* ========================================
    DOM Elements
@@ -32,7 +38,6 @@ const projectForm = $("projectForm");
 const taskModal = $("taskModal");
 const taskForm = $("taskForm");
 
-
 /* ========================================
    API Helper
 ======================================== */
@@ -53,16 +58,34 @@ async function apiRequest(endpoint, options = {}) {
     let data = {};
 
     if (text) {
+
         try {
             data = JSON.parse(text);
+
         } catch {
+
             throw new Error(
                 "The server returned an invalid response."
             );
         }
     }
 
-    if (!response.ok || data.success === false || data.status === false) {
+    if (
+        response.status === 401 ||
+        response.status === 403
+    ) {
+
+        throw new Error(
+            "You are not authorized to perform this action."
+        );
+    }
+
+    if (
+        !response.ok ||
+        data.success === false ||
+        data.status === false
+    ) {
+
         throw new Error(
             data.message ||
             data.error ||
@@ -73,9 +96,8 @@ async function apiRequest(endpoint, options = {}) {
     return data;
 }
 
-
 /* ========================================
-   Utility Functions
+   Utility
 ======================================== */
 
 function showNotification(message, type = "success") {
@@ -86,11 +108,15 @@ function showNotification(message, type = "success") {
 
     notification.textContent = message;
 
-    notification.className = `notification ${type}`;
+    notification.className =
+        `notification ${type}`;
 
-    notificationTimer = setTimeout(() => {
-        notification.classList.add("hidden");
-    }, 5000);
+    notificationTimer =
+        setTimeout(() => {
+
+            notification.classList.add("hidden");
+
+        }, 5000);
 }
 
 
@@ -98,41 +124,62 @@ function setLoading(container, message) {
 
     container.innerHTML = "";
 
-    const element = document.createElement("div");
+    const element =
+        document.createElement("div");
 
     element.className = "empty-state";
+
     element.textContent = message;
 
     container.appendChild(element);
 }
 
 
-function createElement(tag, className, text) {
+function createElement(
+    tag,
+    className,
+    text
+) {
 
-    const element = document.createElement(tag);
+    const element =
+        document.createElement(tag);
 
     if (className) {
         element.className = className;
     }
 
-    if (text !== undefined && text !== null) {
-        element.textContent = String(text);
+    if (
+        text !== undefined &&
+        text !== null
+    ) {
+
+        element.textContent =
+            String(text);
     }
 
     return element;
 }
 
 
-function createButton(label, className, onClick) {
+function createButton(
+    label,
+    className,
+    onClick
+) {
 
-    const button = createElement(
-        "button",
-        `btn ${className}`,
-        label
-    );
+    const button =
+        createElement(
+            "button",
+            `btn ${className}`,
+            label
+        );
 
     button.type = "button";
-    button.addEventListener("click", onClick);
+
+    button.addEventListener(
+        "click",
+        onClick
+    );
 
     return button;
 }
@@ -144,10 +191,11 @@ function formatDate(value) {
         return "No due date";
     }
 
-    // Preserve YYYY-MM-DD without timezone shifts.
-    const date = String(value).slice(0, 10);
+    const date =
+        String(value).slice(0, 10);
 
-    const parts = date.split("-");
+    const parts =
+        date.split("-");
 
     if (parts.length !== 3) {
         return date;
@@ -172,19 +220,22 @@ function closeModal(modal) {
     modal.classList.add("hidden");
 
     if (modal === projectModal) {
+
         projectForm.reset();
+
         editingProjectId = null;
     }
 
     if (modal === taskModal) {
+
         taskForm.reset();
+
         editingTaskId = null;
     }
 }
 
-
 /* ========================================
-   Dashboard Navigation
+   Dashboard
 ======================================== */
 
 function showDashboard() {
@@ -192,6 +243,7 @@ function showDashboard() {
     currentProject = null;
 
     projectView.classList.add("hidden");
+
     dashboardView.classList.remove("hidden");
 
     loadProjects();
@@ -201,26 +253,41 @@ function showDashboard() {
 async function showProject(projectId) {
 
     dashboardView.classList.add("hidden");
+
     projectView.classList.remove("hidden");
 
-    $("detailProjectName").textContent = "Loading project...";
-    $("detailProjectDescription").textContent = "";
+    $("detailProjectName").textContent =
+        "Loading project...";
 
-    setLoading(tasksContainer, "Loading tasks...");
+    $("detailProjectDescription").textContent =
+        "";
+
+    setLoading(
+        tasksContainer,
+        "Loading tasks..."
+    );
 
     try {
 
-        const data = await apiRequest(
-            `/projects/${projectId}`
-        );
+        const data =
+            await apiRequest(
+                `/projects/${projectId}`
+            );
 
-        // Supports either { project: {...} }
-        // or a directly returned project object.
-        currentProject = data.project || data;
+        currentProject =
+            data.project || data;
 
-        if (!currentProject || !currentProject.id) {
-            throw new Error("Project not found.");
+
+        if (
+            !currentProject ||
+            !currentProject.id
+        ) {
+
+            throw new Error(
+                "Project not found."
+            );
         }
+
 
         renderProjectDetails();
 
@@ -230,28 +297,38 @@ async function showProject(projectId) {
 
         console.error(error);
 
-        showNotification(error.message, "error");
+        showNotification(
+            error.message,
+            "error"
+        );
 
         showDashboard();
     }
 }
 
-
 /* ========================================
-   Load Projects
+   Projects
 ======================================== */
 
 async function loadProjects() {
 
-    setLoading(projectsGrid, "Loading projects...");
+    setLoading(
+        projectsGrid,
+        "Loading projects..."
+    );
 
     try {
 
-        const data = await apiRequest("/projects");
+        const data =
+            await apiRequest(
+                "/projects"
+            );
 
-        projects = data.projects || [];
+        projects =
+            data.projects || [];
 
-        $("totalProjects").textContent = projects.length;
+        $("totalProjects").textContent =
+            projects.length;
 
         renderProjects();
 
@@ -264,14 +341,13 @@ async function loadProjects() {
             "Unable to load projects."
         );
 
-        showNotification(error.message, "error");
+        showNotification(
+            error.message,
+            "error"
+        );
     }
 }
 
-
-/* ========================================
-   Render Projects
-======================================== */
 
 function renderProjects() {
 
@@ -287,53 +363,75 @@ function renderProjects() {
         return;
     }
 
+
     projects.forEach((project) => {
 
-        const card = createElement(
-            "article",
-            "project-card"
+        const card =
+            createElement(
+                "article",
+                "project-card"
+            );
+
+
+        const title =
+            createElement(
+                "h3",
+                "",
+                project.name
+            );
+
+
+        const description =
+            createElement(
+                "p",
+                "",
+                project.description ||
+                "No description provided."
+            );
+
+
+        const footer =
+            createElement(
+                "div",
+                "card-footer"
+            );
+
+
+        const projectId =
+            createElement(
+                "small",
+                "",
+                `Project #${project.id}`
+            );
+
+
+        const viewButton =
+            createButton(
+                "View Project",
+                "btn-primary btn-small",
+                () => showProject(project.id)
+            );
+
+
+        footer.append(
+            projectId,
+            viewButton
         );
 
-        const title = createElement(
-            "h3",
-            "",
-            project.name
+
+        card.append(
+            title,
+            description,
+            footer
         );
 
-        const description = createElement(
-            "p",
-            "",
-            project.description || "No description provided."
-        );
-
-        const footer = createElement(
-            "div",
-            "card-footer"
-        );
-
-        const projectId = createElement(
-            "small",
-            "",
-            `Project #${project.id}`
-        );
-
-        const viewButton = createButton(
-            "View Project",
-            "btn-primary btn-small",
-            () => showProject(project.id)
-        );
-
-        footer.append(projectId, viewButton);
-
-        card.append(title, description, footer);
 
         projectsGrid.appendChild(card);
     });
 }
 
-
 /* ========================================
-   Project Form
+   Project Forms
 ======================================== */
 
 function openCreateProjectModal() {
@@ -342,10 +440,15 @@ function openCreateProjectModal() {
 
     projectForm.reset();
 
-    $("projectModalTitle").textContent = "Create Project";
-    $("saveProjectBtn").textContent = "Create Project";
+    $("projectModalTitle").textContent =
+        "Create Project";
 
-    projectModal.classList.remove("hidden");
+    $("saveProjectBtn").textContent =
+        "Create Project";
+
+    projectModal.classList.remove(
+        "hidden"
+    );
 
     $("projectName").focus();
 }
@@ -357,34 +460,46 @@ function openEditProjectModal() {
         return;
     }
 
-    editingProjectId = currentProject.id;
+    editingProjectId =
+        currentProject.id;
 
-    $("projectModalTitle").textContent = "Edit Project";
-    $("saveProjectBtn").textContent = "Save Changes";
+    $("projectModalTitle").textContent =
+        "Edit Project";
 
-    $("projectName").value = currentProject.name || "";
+    $("saveProjectBtn").textContent =
+        "Save Changes";
+
+    $("projectName").value =
+        currentProject.name || "";
 
     $("projectDescription").value =
         currentProject.description || "";
 
-    projectModal.classList.remove("hidden");
+    projectModal.classList.remove(
+        "hidden"
+    );
 
     $("projectName").focus();
 }
 
-
 /* ========================================
-   Save Project (Create / Update)
+   Save Project
 ======================================== */
 
 async function saveProject(event) {
 
     event.preventDefault();
 
-    const name = $("projectName").value.trim();
+    const name =
+        $("projectName")
+            .value
+            .trim();
 
     const description =
-        $("projectDescription").value.trim();
+        $("projectDescription")
+            .value
+            .trim();
+
 
     if (!name) {
 
@@ -396,37 +511,62 @@ async function saveProject(event) {
         return;
     }
 
-    const button = $("saveProjectBtn");
+
+    const button =
+        $("saveProjectBtn");
 
     button.disabled = true;
-    button.textContent = "Saving...";
+
+    button.textContent =
+        "Saving...";
+
 
     try {
 
+        /*
+         * IMPORTANT:
+         * owner_id is intentionally NOT sent.
+         *
+         * The backend determines the owner
+         * from the authenticated GitHub account.
+         */
+
+        const payload = {
+
+            name,
+
+            description
+        };
+
+
         if (editingProjectId !== null) {
 
-            const projectId = editingProjectId;
+            const projectId =
+                editingProjectId;
+
 
             await apiRequest(
                 `/projects/${projectId}`,
                 {
                     method: "PUT",
 
-                    body: JSON.stringify({
-                        name,
-                        description,
-                        owner_id: currentProject.owner_id
-                    })
+                    body:
+                        JSON.stringify(payload)
                 }
             );
 
+
             closeModal(projectModal);
+
 
             showNotification(
                 "Project updated successfully."
             );
 
-            await showProject(projectId);
+
+            await showProject(
+                projectId
+            );
 
         } else {
 
@@ -435,28 +575,33 @@ async function saveProject(event) {
                 {
                     method: "POST",
 
-                    body: JSON.stringify({
-                        name,
-                        description,
-                        owner_id: CURRENT_USER_ID
-                    })
+                    body:
+                        JSON.stringify(payload)
                 }
             );
 
+
             closeModal(projectModal);
+
 
             showNotification(
                 "Project created successfully."
             );
 
+
             await loadProjects();
         }
+
 
     } catch (error) {
 
         console.error(error);
 
-        showNotification(error.message, "error");
+        showNotification(
+            error.message,
+            "error"
+        );
+
 
     } finally {
 
@@ -469,7 +614,6 @@ async function saveProject(event) {
     }
 }
 
-
 /* ========================================
    Delete Project
 ======================================== */
@@ -480,21 +624,29 @@ async function deleteProject() {
         return;
     }
 
-    const projectId = currentProject.id;
 
-    const confirmed = confirm(
-        `Delete "${currentProject.name}"?\n\n` +
-        "All tasks in this project will also be deleted. " +
-        "This action cannot be undone."
-    );
+    const projectId =
+        currentProject.id;
+
+
+    const confirmed =
+        confirm(
+            `Delete "${currentProject.name}"?\n\n` +
+            "All tasks in this project will also be deleted. " +
+            "This action cannot be undone."
+        );
+
 
     if (!confirmed) {
         return;
     }
 
-    const button = $("deleteProjectBtn");
+
+    const button =
+        $("deleteProjectBtn");
 
     button.disabled = true;
+
 
     try {
 
@@ -505,24 +657,30 @@ async function deleteProject() {
             }
         );
 
+
         showDashboard();
+
 
         showNotification(
             "Project deleted successfully."
         );
 
+
     } catch (error) {
 
         console.error(error);
 
-        showNotification(error.message, "error");
+        showNotification(
+            error.message,
+            "error"
+        );
+
 
     } finally {
 
         button.disabled = false;
     }
 }
-
 
 /* ========================================
    Project Details
@@ -534,17 +692,18 @@ function renderProjectDetails() {
         return;
     }
 
+
     $("detailProjectName").textContent =
         currentProject.name;
+
 
     $("detailProjectDescription").textContent =
         currentProject.description ||
         "No description provided.";
 }
 
-
 /* ========================================
-   Load Tasks
+   Tasks
 ======================================== */
 
 async function loadTasks() {
@@ -553,30 +712,42 @@ async function loadTasks() {
         return;
     }
 
-    const projectId = currentProject.id;
 
-    setLoading(tasksContainer, "Loading tasks...");
+    const projectId =
+        currentProject.id;
+
+
+    setLoading(
+        tasksContainer,
+        "Loading tasks..."
+    );
+
 
     try {
 
-        const data = await apiRequest(
-            `/projects/${projectId}/tasks`
-        );
+        const data =
+            await apiRequest(
+                `/projects/${projectId}/tasks`
+            );
 
-        // Ignore an outdated response if the user
-        // has navigated to another project.
+
         if (
             !currentProject ||
             currentProject.id !== projectId
         ) {
+
             return;
         }
 
-        tasks = data.tasks || [];
+
+        tasks =
+            data.tasks || [];
+
 
         updateTaskStats();
 
         renderTasks();
+
 
     } catch (error) {
 
@@ -587,38 +758,42 @@ async function loadTasks() {
             "Unable to load tasks."
         );
 
-        showNotification(error.message, "error");
+
+        showNotification(
+            error.message,
+            "error"
+        );
     }
 }
 
 
-/* ========================================
-   Task Statistics
-======================================== */
-
 function updateTaskStats() {
 
-    $("totalTasks").textContent = tasks.length;
+    $("totalTasks").textContent =
+        tasks.length;
+
 
     $("inProgressTasks").textContent =
         tasks.filter(
-            task => task.status === "IN_PROGRESS"
+            task =>
+                task.status ===
+                "IN_PROGRESS"
         ).length;
+
 
     $("completedTasks").textContent =
         tasks.filter(
-            task => task.status === "DONE"
+            task =>
+                task.status ===
+                "DONE"
         ).length;
 }
 
 
-/* ========================================
-   Render Tasks
-======================================== */
-
 function renderTasks() {
 
     tasksContainer.innerHTML = "";
+
 
     if (tasks.length === 0) {
 
@@ -630,106 +805,171 @@ function renderTasks() {
         return;
     }
 
+
     tasks.forEach((task) => {
 
-        const card = createElement(
-            "article",
-            "task-card"
-        );
+        const card =
+            createElement(
+                "article",
+                "task-card"
+            );
 
-        const header = createElement(
-            "div",
-            "task-header"
-        );
 
-        const title = createElement(
-            "h4",
-            "",
-            task.title
-        );
+        const header =
+            createElement(
+                "div",
+                "task-header"
+            );
 
-        const badges = createElement(
-            "div",
-            "task-badges"
-        );
+
+        const title =
+            createElement(
+                "h4",
+                "",
+                task.title
+            );
+
+
+        const badges =
+            createElement(
+                "div",
+                "task-badges"
+            );
+
 
         const statusLabel = {
+
             TODO: "To Do",
-            IN_PROGRESS: "In Progress",
+
+            IN_PROGRESS:
+                "In Progress",
+
             DONE: "Done"
         };
 
-        const status = createElement(
-            "span",
-            `pill status-${task.status}`,
-            statusLabel[task.status] || task.status
+
+        const status =
+            createElement(
+                "span",
+                `pill status-${task.status}`,
+                statusLabel[
+                    task.status
+                ] || task.status
+            );
+
+
+        const priority =
+            createElement(
+                "span",
+                `pill priority-${task.priority}`,
+                task.priority
+            );
+
+
+        badges.append(
+            status,
+            priority
         );
 
-        const priority = createElement(
-            "span",
-            `pill priority-${task.priority}`,
-            task.priority
+
+        header.append(
+            title,
+            badges
         );
 
-        badges.append(status, priority);
 
-        header.append(title, badges);
+        const description =
+            createElement(
+                "p",
+                "",
+                task.description ||
+                "No description."
+            );
 
-        const description = createElement(
-            "p",
-            "",
-            task.description || "No description."
+
+        const footer =
+            createElement(
+                "div",
+                "task-footer"
+            );
+
+
+        const metadata =
+            createElement(
+                "div",
+                "task-meta"
+            );
+
+
+        const assigned =
+            task.assigned_user ||
+            (
+                task.assigned_to
+                    ? `User #${task.assigned_to}`
+                    : "Unassigned"
+            );
+
+
+        const assignee =
+            createElement(
+                "span",
+                "",
+                `Assigned: ${assigned}`
+            );
+
+
+        const dueDate =
+            createElement(
+                "span",
+                "",
+                `Due: ${formatDate(
+                    task.due_date
+                )}`
+            );
+
+
+        metadata.append(
+            assignee,
+            dueDate
         );
 
-        const footer = createElement(
-            "div",
-            "task-footer"
+
+        const actions =
+            createElement(
+                "div",
+                "button-group"
+            );
+
+
+        const editButton =
+            createButton(
+                "Edit",
+                "btn-secondary btn-small",
+                () =>
+                    openEditTaskModal(task)
+            );
+
+
+        const deleteButton =
+            createButton(
+                "Delete",
+                "btn-danger btn-small",
+                () =>
+                    deleteTask(task)
+            );
+
+
+        actions.append(
+            editButton,
+            deleteButton
         );
 
-        const metadata = createElement(
-            "div",
-            "task-meta"
+
+        footer.append(
+            metadata,
+            actions
         );
 
-        const assigned = task.assigned_user ||
-            (task.assigned_to
-                ? `User #${task.assigned_to}`
-                : "Unassigned");
-
-        const assignee = createElement(
-            "span",
-            "",
-            `Assigned: ${assigned}`
-        );
-
-        const dueDate = createElement(
-            "span",
-            "",
-            `Due: ${formatDate(task.due_date)}`
-        );
-
-        metadata.append(assignee, dueDate);
-
-        const actions = createElement(
-            "div",
-            "button-group"
-        );
-
-        const editButton = createButton(
-            "Edit",
-            "btn-secondary btn-small",
-            () => openEditTaskModal(task)
-        );
-
-        const deleteButton = createButton(
-            "Delete",
-            "btn-danger btn-small",
-            () => deleteTask(task)
-        );
-
-        actions.append(editButton, deleteButton);
-
-        footer.append(metadata, actions);
 
         card.append(
             header,
@@ -737,13 +977,15 @@ function renderTasks() {
             footer
         );
 
-        tasksContainer.appendChild(card);
+
+        tasksContainer.appendChild(
+            card
+        );
     });
 }
 
-
 /* ========================================
-   Task Form
+   Task Forms
 ======================================== */
 
 function openCreateTaskModal() {
@@ -752,17 +994,31 @@ function openCreateTaskModal() {
         return;
     }
 
+
     editingTaskId = null;
 
     taskForm.reset();
 
-    $("taskStatus").value = "TODO";
-    $("taskPriority").value = "MEDIUM";
 
-    $("taskModalTitle").textContent = "Create Task";
-    $("saveTaskBtn").textContent = "Create Task";
+    $("taskStatus").value =
+        "TODO";
 
-    taskModal.classList.remove("hidden");
+    $("taskPriority").value =
+        "MEDIUM";
+
+
+    $("taskModalTitle").textContent =
+        "Create Task";
+
+
+    $("saveTaskBtn").textContent =
+        "Create Task";
+
+
+    taskModal.classList.remove(
+        "hidden"
+    );
+
 
     $("taskTitle").focus();
 }
@@ -770,47 +1026,71 @@ function openCreateTaskModal() {
 
 function openEditTaskModal(task) {
 
-    editingTaskId = task.id;
+    editingTaskId =
+        task.id;
 
-    $("taskModalTitle").textContent = "Edit Task";
-    $("saveTaskBtn").textContent = "Save Changes";
 
-    $("taskTitle").value = task.title || "";
+    $("taskModalTitle").textContent =
+        "Edit Task";
+
+
+    $("saveTaskBtn").textContent =
+        "Save Changes";
+
+
+    $("taskTitle").value =
+        task.title || "";
+
 
     $("taskDescription").value =
         task.description || "";
 
+
     $("taskStatus").value =
         task.status || "TODO";
+
 
     $("taskPriority").value =
         task.priority || "MEDIUM";
 
+
     $("taskAssignedTo").value =
         task.assigned_to ?? "";
 
-    $("taskDueDate").value =
-        dateInputValue(task.due_date);
 
-    taskModal.classList.remove("hidden");
+    $("taskDueDate").value =
+        dateInputValue(
+            task.due_date
+        );
+
+
+    taskModal.classList.remove(
+        "hidden"
+    );
+
 
     $("taskTitle").focus();
 }
 
-
 /* ========================================
-   Save Task (Create / Update)
+   Save Task
 ======================================== */
 
 async function saveTask(event) {
 
     event.preventDefault();
 
+
     if (!currentProject) {
         return;
     }
 
-    const title = $("taskTitle").value.trim();
+
+    const title =
+        $("taskTitle")
+            .value
+            .trim();
+
 
     if (!title) {
 
@@ -822,16 +1102,27 @@ async function saveTask(event) {
         return;
     }
 
-    const assignedValue =
-        $("taskAssignedTo").value.trim();
 
-    const assignedTo = assignedValue
-        ? Number(assignedValue)
-        : null;
+    const assignedValue =
+        $("taskAssignedTo")
+            .value
+            .trim();
+
+
+    const assignedTo =
+        assignedValue
+            ? Number(assignedValue)
+            : null;
+
 
     if (
         assignedTo !== null &&
-        (!Number.isInteger(assignedTo) || assignedTo < 1)
+        (
+            !Number.isInteger(
+                assignedTo
+            ) ||
+            assignedTo < 1
+        )
     ) {
 
         showNotification(
@@ -842,12 +1133,15 @@ async function saveTask(event) {
         return;
     }
 
+
     const payload = {
 
         title,
 
         description:
-            $("taskDescription").value.trim(),
+            $("taskDescription")
+                .value
+                .trim(),
 
         status:
             $("taskStatus").value,
@@ -859,32 +1153,47 @@ async function saveTask(event) {
             assignedTo,
 
         due_date:
-            $("taskDueDate").value || null
+            $("taskDueDate").value ||
+            null
     };
 
-    const button = $("saveTaskBtn");
+
+    const button =
+        $("saveTaskBtn");
+
 
     button.disabled = true;
-    button.textContent = "Saving...";
+
+    button.textContent =
+        "Saving...";
+
 
     try {
 
-        if (editingTaskId !== null) {
+        if (
+            editingTaskId !== null
+        ) {
 
             await apiRequest(
                 `/tasks/${editingTaskId}`,
                 {
                     method: "PUT",
 
-                    body: JSON.stringify(payload)
+                    body:
+                        JSON.stringify(
+                            payload
+                        )
                 }
             );
 
+
             closeModal(taskModal);
+
 
             showNotification(
                 "Task updated successfully."
             );
+
 
         } else {
 
@@ -893,24 +1202,35 @@ async function saveTask(event) {
                 {
                     method: "POST",
 
-                    body: JSON.stringify(payload)
+                    body:
+                        JSON.stringify(
+                            payload
+                        )
                 }
             );
 
+
             closeModal(taskModal);
+
 
             showNotification(
                 "Task created successfully."
             );
         }
 
+
         await loadTasks();
+
 
     } catch (error) {
 
         console.error(error);
 
-        showNotification(error.message, "error");
+        showNotification(
+            error.message,
+            "error"
+        );
+
 
     } finally {
 
@@ -929,14 +1249,17 @@ async function saveTask(event) {
 
 async function deleteTask(task) {
 
-    const confirmed = confirm(
-        `Delete task "${task.title}"?\n\n` +
-        "This action cannot be undone."
-    );
+    const confirmed =
+        confirm(
+            `Delete task "${task.title}"?\n\n` +
+            "This action cannot be undone."
+        );
+
 
     if (!confirmed) {
         return;
     }
+
 
     try {
 
@@ -947,16 +1270,23 @@ async function deleteTask(task) {
             }
         );
 
+
         showNotification(
             "Task deleted successfully."
         );
 
+
         await loadTasks();
+
 
     } catch (error) {
 
         console.error(error);
-        showNotification(error.message, "error");
+
+        showNotification(
+            error.message,
+            "error"
+        );
     }
 }
 
@@ -964,94 +1294,127 @@ async function deleteTask(task) {
    Event Listeners
 ======================================== */
 
-// Dashboard
 $("newProjectBtn").addEventListener(
     "click",
     openCreateProjectModal
 );
+
 
 $("backBtn").addEventListener(
     "click",
     showDashboard
 );
 
-// Project actions
+
 $("editProjectBtn").addEventListener(
     "click",
     openEditProjectModal
 );
+
 
 $("deleteProjectBtn").addEventListener(
     "click",
     deleteProject
 );
 
-// Project modal
+
 $("closeProjectModal").addEventListener(
     "click",
-    () => closeModal(projectModal)
+    () =>
+        closeModal(projectModal)
 );
+
 
 $("cancelProjectBtn").addEventListener(
     "click",
-    () => closeModal(projectModal)
+    () =>
+        closeModal(projectModal)
 );
+
 
 projectForm.addEventListener(
     "submit",
     saveProject
 );
 
-// Task actions
+
 $("newTaskBtn").addEventListener(
     "click",
     openCreateTaskModal
 );
 
-// Task modal
+
 $("closeTaskModal").addEventListener(
     "click",
-    () => closeModal(taskModal)
+    () =>
+        closeModal(taskModal)
 );
+
 
 $("cancelTaskBtn").addEventListener(
     "click",
-    () => closeModal(taskModal)
+    () =>
+        closeModal(taskModal)
 );
+
 
 taskForm.addEventListener(
     "submit",
     saveTask
 );
 
-// Close modals when clicking outside
-[projectModal, taskModal].forEach((modal) => {
 
-    modal.addEventListener("click", (event) => {
+[projectModal, taskModal].forEach(
+    (modal) => {
 
-        if (event.target === modal) {
-            closeModal(modal);
+        modal.addEventListener(
+            "click",
+            (event) => {
+
+                if (
+                    event.target === modal
+                ) {
+
+                    closeModal(modal);
+                }
+            }
+        );
+    }
+);
+
+
+document.addEventListener(
+    "keydown",
+    (event) => {
+
+        if (event.key !== "Escape") {
+            return;
         }
-    });
-});
 
-// Escape key closes modals
-document.addEventListener("keydown", (event) => {
 
-    if (event.key === "Escape") {
+        if (
+            !projectModal
+                .classList
+                .contains("hidden")
+        ) {
 
-        if (!projectModal.classList.contains("hidden")) {
             closeModal(projectModal);
         }
 
-        if (!taskModal.classList.contains("hidden")) {
+
+        if (
+            !taskModal
+                .classList
+                .contains("hidden")
+        ) {
+
             closeModal(taskModal);
         }
     }
-});
+);
 
 /* ========================================
-   Start Application
+   Start
 ======================================== */
 
 loadProjects();

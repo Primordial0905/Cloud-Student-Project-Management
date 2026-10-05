@@ -1,16 +1,46 @@
 const { app } = require("@azure/functions");
-const { getDatabaseConnection } = require("../database");
+
+const {
+    sql,
+    getDatabaseConnection
+} = require("../database");
+
+const {
+    getCurrentUser
+} = require("../auth");
 
 app.http("project", {
-    methods: ['GET'],
+
+    methods: ["GET"],
     authLevel: "anonymous",
     route: "projects/{id}",
 
     handler: async (request, context) => {
-        try {
-            const id = request.params.id;
 
-            if (!id || isNaN(Number(id))) {
+        try {
+
+            const currentUser =
+                await getCurrentUser(request);
+
+            if (!currentUser) {
+
+                return {
+                    status: 401,
+                    jsonBody: {
+                        success: false,
+                        message: "Authentication required"
+                    }
+                };
+            }
+
+            const projectId =
+                Number(request.params.id);
+
+            if (
+                !Number.isInteger(projectId) ||
+                projectId <= 0
+            ) {
+
                 return {
                     status: 400,
                     jsonBody: {
@@ -20,24 +50,37 @@ app.http("project", {
                 };
             }
 
-            const pool = await getDatabaseConnection();
+            const pool =
+                await getDatabaseConnection();
 
-            const result = await pool
-                .request()
-                .input("id", Number(id))
-                .query(`
-                    SELECT
-                        id,
-                        name,
-                        description,
-                        owner_id,
-                        created_at,
-                        updated_at
-                    FROM Projects
-                    WHERE id = @id
-                `);
+            const result =
+                await pool
+                    .request()
+                    .input(
+                        "projectId",
+                        sql.Int,
+                        projectId
+                    )
+                    .input(
+                        "ownerId",
+                        sql.Int,
+                        currentUser.user.id
+                    )
+                    .query(`
+                        SELECT
+                            id,
+                            name,
+                            description,
+                            owner_id,
+                            created_at,
+                            updated_at
+                        FROM Projects
+                        WHERE id = @projectId
+                        AND owner_id = @ownerId
+                    `);
 
             if (result.recordset.length === 0) {
+
                 return {
                     status: 404,
                     jsonBody: {
@@ -51,12 +94,17 @@ app.http("project", {
                 status: 200,
                 jsonBody: {
                     success: true,
-                    project: result.recordset[0]
+                    project:
+                        result.recordset[0]
                 }
             };
 
         } catch (error) {
-            context.error("Project retrieval error:", error);
+
+            context.error(
+                "Project retrieval error:",
+                error
+            );
 
             return {
                 status: 500,

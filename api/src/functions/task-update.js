@@ -1,16 +1,47 @@
 const { app } = require("@azure/functions");
-const { getDatabaseConnection } = require("../database");
+
+const {
+    sql,
+    getDatabaseConnection
+} = require("../database");
+
+const {
+    getCurrentUser
+} = require("../auth");
+
 
 app.http("task-update", {
-    methods: ['PUT'],
+
+    methods: ["PUT"],
     authLevel: "anonymous",
     route: "tasks/{id}",
 
     handler: async (request, context) => {
-        try {
-            const taskId = request.params.id;
 
-            if (!taskId || isNaN(Number(taskId))) {
+        try {
+
+            const currentUser =
+                await getCurrentUser(request);
+
+            if (!currentUser) {
+
+                return {
+                    status: 401,
+                    jsonBody: {
+                        success: false,
+                        message: "Authentication required"
+                    }
+                };
+            }
+
+            const taskId =
+                Number(request.params.id);
+
+            if (
+                !Number.isInteger(taskId) ||
+                taskId <= 0
+            ) {
+
                 return {
                     status: 400,
                     jsonBody: {
@@ -20,62 +51,132 @@ app.http("task-update", {
                 };
             }
 
-            const body = await request.json();
+            const body =
+                await request.json();
 
-            const pool = await getDatabaseConnection();
+            if (
+                !body.title ||
+                !body.title.trim()
+            ) {
 
-            const result = await pool
-                .request()
-                .input("taskId", Number(taskId))
-                .input("title", body.title)
-                .input("description", body.description || null)
-                .input("status", body.status || "TODO")
-                .input("priority", body.priority || "MEDIUM")
-                .input("dueDate", body.due_date || null)
-                .query(`
-                    UPDATE Tasks
-                    SET
-                        title = @title,
-                        description = @description,
-                        status = @status,
-                        priority = @priority,
-                        due_date = @dueDate,
-                        updated_at = GETUTCDATE()
-                    OUTPUT
-                        INSERTED.id,
-                        INSERTED.project_id,
-                        INSERTED.assigned_to,
-                        INSERTED.title,
-                        INSERTED.description,
-                        INSERTED.status,
-                        INSERTED.priority,
-                        INSERTED.due_date,
-                        INSERTED.created_at,
-                        INSERTED.updated_at
-                    WHERE id = @taskId
-                `);
+                return {
+                    status: 400,
+                    jsonBody: {
+                        success: false,
+                        message: "Task title is required"
+                    }
+                };
+            }
+
+            const pool =
+                await getDatabaseConnection();
+
+            const result =
+                await pool
+                    .request()
+                    .input(
+                        "taskId",
+                        sql.Int,
+                        taskId
+                    )
+                    .input(
+                        "ownerId",
+                        sql.Int,
+                        currentUser.user.id
+                    )
+                    .input(
+                        "title",
+                        sql.NVarChar(200),
+                        body.title.trim()
+                    )
+                    .input(
+                        "description",
+                        sql.NVarChar(sql.MAX),
+                        body.description || null
+                    )
+                    .input(
+                        "status",
+                        sql.NVarChar(20),
+                        body.status || "TODO"
+                    )
+                    .input(
+                        "priority",
+                        sql.NVarChar(20),
+                        body.priority || "MEDIUM"
+                    )
+                    .input(
+                        "assignedTo",
+                        sql.Int,
+                        body.assigned_to || null
+                    )
+                    .input(
+                        "dueDate",
+                        sql.Date,
+                        body.due_date || null
+                    )
+                    .query(`
+                        UPDATE Tasks
+
+                        SET
+                            title = @title,
+                            description = @description,
+                            status = @status,
+                            priority = @priority,
+                            assigned_to = @assignedTo,
+                            due_date = @dueDate,
+                            updated_at = GETUTCDATE()
+
+                        OUTPUT
+                            INSERTED.id,
+                            INSERTED.project_id,
+                            INSERTED.assigned_to,
+                            INSERTED.title,
+                            INSERTED.description,
+                            INSERTED.status,
+                            INSERTED.priority,
+                            INSERTED.due_date,
+                            INSERTED.created_at,
+                            INSERTED.updated_at
+
+                        FROM Tasks
+
+                        INNER JOIN Projects
+                            ON Tasks.project_id = Projects.id
+
+                        WHERE Tasks.id = @taskId
+                        AND Projects.owner_id = @ownerId
+                    `);
 
             if (result.recordset.length === 0) {
+
                 return {
                     status: 404,
                     jsonBody: {
                         success: false,
-                        message: "Task not found"
+                        message:
+                            "Task not found or access denied"
                     }
                 };
             }
 
             return {
+
                 status: 200,
                 jsonBody: {
                     success: true,
-                    message : "Task updated successfully",
-                    project: result.recordset[0]
+                    message:
+                        "Task updated successfully",
+                    task:
+                        result.recordset[0]
                 }
             };
 
         } catch (error) {
-            context.error("Task update error:", error);
+
+            context.error(
+                "Task update error:",
+                error
+            );
 
             return {
                 status: 500,

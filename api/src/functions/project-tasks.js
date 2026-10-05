@@ -1,18 +1,48 @@
-const {app} = require ("@azure/functions");
-const { getDatabaseConnection } = require("../database");
+const { app } = require("@azure/functions");
+
+const {
+    sql,
+    getDatabaseConnection
+} = require("../database");
+
+const {
+    getCurrentUser
+} = require("../auth");
 
 app.http("project-tasks", {
-    methods : ["GET"],
-    authlevel : "anonymus",
-    route : "projects/{projectId}/tasks",
 
-    handler : async (request, context) =>{
+    methods: ["GET"],
+    authLevel: "anonymous",
+    route: "projects/{projectId}/tasks",
+
+    handler: async (request, context) => {
+
         try {
-            const projectId = request.params.projectId;
 
-            if(!projectId || isNaN(Number(projectId))){
+            const currentUser =
+                await getCurrentUser(request);
+
+            if (!currentUser) {
+
                 return {
-                    status : 400,
+                    status: 401,
+                    jsonBody: {
+                        success: false,
+                        message: "Authentication required"
+                    }
+                };
+            }
+
+            const projectId =
+                Number(request.params.projectId);
+
+            if (
+                !Number.isInteger(projectId) ||
+                projectId <= 0
+            ) {
+
+                return {
+                    status: 400,
                     jsonBody: {
                         success: false,
                         message: "Invalid project ID"
@@ -20,51 +50,100 @@ app.http("project-tasks", {
                 };
             }
 
-            const pool = await getDatabaseConnection();
+            const pool =
+                await getDatabaseConnection();
 
-            const result = await pool
-                .request()
-                .input("projectId", Number(projectId))
-                .query(`
-                    SELECT
-                        t.id,
-                        t.project_id,
-                        t.assigned_to,
-                        u.name as assigned_user,
-                        t.title,
-                        t.description,
-                        t.status,
-                        t.priority,
-                        t.due_date,
-                        t.created_at,
-                        t.updated_at
-                    FROM tasks t
-                    LEFT JOIN Users u
-                        on t.assigned_to = u.id
-                    WHERE t.project_id = @projectId
-                    ORDER BY t.created_at DESC
-                `);
+            const project =
+                await pool
+                    .request()
+                    .input(
+                        "projectId",
+                        sql.Int,
+                        projectId
+                    )
+                    .input(
+                        "ownerId",
+                        sql.Int,
+                        currentUser.user.id
+                    )
+                    .query(`
+                        SELECT id
+                        FROM Projects
+                        WHERE id = @projectId
+                        AND owner_id = @ownerId
+                    `);
+
+            if (project.recordset.length === 0) {
+
+                return {
+                    status: 404,
+                    jsonBody: {
+                        success: false,
+                        message:
+                            "Project not found or access denied"
+                    }
+                };
+            }
+
+            const result =
+                await pool
+                    .request()
+                    .input(
+                        "projectId",
+                        sql.Int,
+                        projectId
+                    )
+                    .query(`
+                        SELECT
+                            t.id,
+                            t.project_id,
+                            t.assigned_to,
+                            u.name AS assigned_user,
+                            t.title,
+                            t.description,
+                            t.status,
+                            t.priority,
+                            t.due_date,
+                            t.created_at,
+                            t.updated_at
+                        FROM Tasks t
+
+                        LEFT JOIN Users u
+                            ON t.assigned_to = u.id
+
+                        WHERE t.project_id = @projectId
+
+                        ORDER BY
+                            t.created_at DESC
+                    `);
 
             return {
-                status : 200,
+
+                status: 200,
                 jsonBody: {
-                    success :true,
-                    project_id : Number(projectId),
-                    tasks : result.recordset
+                    success: true,
+                    project_id:
+                        projectId,
+                    tasks:
+                        result.recordset
                 }
             };
 
+
         } catch (error) {
-            context.error("Task retrieval error: ", error);
+
+            context.error(
+                "Project tasks error:",
+                error
+            );
 
             return {
                 status: 500,
-                jsonBody : {
-                    success : false,
-                    message : "Internal server error"
+                jsonBody: {
+                    success: false,
+                    message: "Internal server error"
                 }
             };
         }
-
     }
 });

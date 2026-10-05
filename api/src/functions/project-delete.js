@@ -1,16 +1,47 @@
 const { app } = require("@azure/functions");
-const { getDatabaseConnection } = require("../database");
+
+const {
+    sql,
+    getDatabaseConnection
+} = require("../database");
+
+const {
+    getCurrentUser
+} = require("../auth");
+
 
 app.http("project-delete", {
+
     methods: ["DELETE"],
     authLevel: "anonymous",
     route: "projects/{id}",
 
     handler: async (request, context) => {
-        try {
-            const projectId = request.params.id;
 
-            if (!projectId || isNaN(Number(projectId))) {
+        try {
+
+            const currentUser =
+                await getCurrentUser(request);
+
+            if (!currentUser) {
+
+                return {
+                    status: 401,
+                    jsonBody: {
+                        success: false,
+                        message: "Authentication required"
+                    }
+                };
+            }
+
+            const projectId =
+                Number(request.params.id);
+
+            if (
+                !Number.isInteger(projectId) ||
+                projectId <= 0
+            ) {
+
                 return {
                     status: 400,
                     jsonBody: {
@@ -20,38 +51,57 @@ app.http("project-delete", {
                 };
             }
 
-            const pool = await getDatabaseConnection();
+            const pool =
+                await getDatabaseConnection();
 
-            const result = await pool
-                .request()
-                .input("projectId", Number(projectId))
-                .query(`
-                    DELETE FROM Projects
-                    OUTPUT DELETED.id
-                    WHERE id = @projectId
-                `);
+            const result =
+                await pool
+                    .request()
+                    .input(
+                        "id",
+                        sql.Int,
+                        projectId
+                    )
+                    .input(
+                        "ownerId",
+                        sql.Int,
+                        currentUser.user.id
+                    )
+                    .query(`
+                        DELETE FROM Projects
 
-            if (result.recordset.length === 0) {
+                        WHERE id = @id
+                        AND owner_id = @ownerId
+                    `);
+
+            if (result.rowsAffected[0] === 0) {
+
                 return {
                     status: 404,
                     jsonBody: {
                         success: false,
-                        message: "Project not found"
+                        message:
+                            "Project not found or access denied"
                     }
                 };
             }
 
             return {
+
                 status: 200,
                 jsonBody: {
                     success: true,
-                    message: "Project deleted successfully",
-                    project: result.recordset[0]
+                    message:
+                        "Project deleted successfully"
                 }
             };
 
         } catch (error) {
-            context.error("Project delete error:", error);
+
+            context.error(
+                "Project deletion error:",
+                error
+            );
 
             return {
                 status: 500,

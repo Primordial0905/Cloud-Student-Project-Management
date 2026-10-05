@@ -1,16 +1,5 @@
-/* ========================================
-   Configuration
-======================================== */
 
 const API_BASE = "/api";
-
-// Temporary until authentication is implemented.
-const CURRENT_USER_ID = 1;
-
-
-/* ========================================
-   Application State
-======================================== */
 
 let projects = [];
 let tasks = [];

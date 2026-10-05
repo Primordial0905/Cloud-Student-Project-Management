@@ -72,7 +72,9 @@ app.http("auth-me", {
 
                 jsonBody: {
                     success: false,
-                    message: "Authentication processing failed"
+                    message: "Authentication processing failed",
+                    error: error.message,
+                    code: error.code || null
                 }
             };
         }

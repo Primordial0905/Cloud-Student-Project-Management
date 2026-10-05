@@ -3,38 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <title>Cloud Project Manager</title>
+
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-    <header>
-        <div class="header-content">
-            <h1>Cloud Project Manager</h1>
-            <p>Azure-Based Student Project Management System</p>
+    <header class="topbar">
+        <div class="container topbar-content">
+            <div>
+                <h1>Cloud Project Manager</h1>
+                <p>Azure-based student project management system</p>
+            </div>
         </div>
     </header>
 
-    <main>
+    <main class="container">
+
+        <!-- Dashboard Header -->
         <section class="dashboard-header">
             <div>
-                <h2>Your Projects</h2>
+                <h2>My Projects</h2>
                 <p>Manage your university projects and tasks.</p>
             </div>
-
-            <button id="addProjectButton">
+            <button id="newProjectButton" class="primary-button">
                 + New Project
             </button>
         </section>
 
-        <section id="projectsContainer" class="projects-container">
-            <p id="loadingMessage">Loading projects...</p>
+        <!-- Status Message -->
+        <div id="message" class="message hidden"></div>
+
+        <!-- Projects -->
+        <section id="projectsContainer" class="projects-grid">
+            <div class="loading">
+                Loading projects...
+            </div>
         </section>
 
-        <p id="errorMessage" class="error-message"></p>
+        <!-- Create Project Modal -->
+        <div id="projectModal" class="modal hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Create New Project</h2>
+
+                    <button id="closeModalButton" class="close-button">
+                        x
+                    </button>
+                </div>
+
+                <form id="projectForm">
+
+                    <div class="form-group">
+                        <label for="projectName">
+                            Project Name
+                        </label>
+
+                        <input
+                            type="text"
+                            id="projectName"
+                            placeholder="Enter project name"
+                            required
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="projectDescription">
+                            Description
+                        </label>
+
+                        <textarea
+                            id="projectDescription"
+                            rows="5"
+                            placeholder="Describe your project"
+                        ></textarea>
+                    </div>
+
+                    <div class="form-actions">
+
+                        <button
+                            type="button"
+                            id="cancelButton"
+                            class="secondary-button"
+                        >
+                            Cancel
+                        </button>
+
+                        <button
+                            type="submit"
+                            id="createButton"
+                            class="primary-button"
+                        >
+                            Create Project
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </main>
 
+
+    <footer>
+        <p>Cloud Project Manager • Azure</p>
+    </footer>
+
+
     <script src="app.js"></script>
+
 </body>
 </html>

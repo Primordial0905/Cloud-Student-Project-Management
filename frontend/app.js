@@ -1,254 +1,1068 @@
-const projectsContainer = document.getElementById("projectsContainer");
-const newProjectButton = document.getElementById("newProjectButton");
-const projectModal = document.getElementById("projectModal");
-const closeModalButton = document.getElementById("closeModalButton");
-const cancelButton = document.getElementById("cancelButton");
-const projectForm = document.getElementById("projectForm");
-const projectName = document.getElementById("projectName");
-const projectDescription = document.getElementById("projectDescription");
-const createButton = document.getElementById("createButton");
-const message = document.getElementById("message");
+/* ========================================
+   Configuration
+======================================== */
 
-/* =========================
-   Utility
-========================= */
+const API_BASE = "/api";
 
-function showMessage(text, type) {
+// Temporary until authentication is implemented.
+const CURRENT_USER_ID = 1;
 
-    message.textContent = text;
-    message.className = `message ${type}`;
 
-    setTimeout(() => {
-        message.classList.add("hidden");
-    }, 4000);
+/* ========================================
+   Application State
+======================================== */
+
+let projects = [];
+let tasks = [];
+
+let currentProject = null;
+
+let editingProjectId = null;
+let editingTaskId = null;
+
+let notificationTimer = null;
+
+
+/* ========================================
+   DOM Elements
+======================================== */
+
+const $ = (id) => document.getElementById(id);
+
+const dashboardView = $("dashboardView");
+const projectView = $("projectView");
+
+const projectsGrid = $("projectsGrid");
+const tasksContainer = $("tasksContainer");
+
+const notification = $("notification");
+
+const projectModal = $("projectModal");
+const projectForm = $("projectForm");
+
+const taskModal = $("taskModal");
+const taskForm = $("taskForm");
+
+
+/* ========================================
+   API Helper
+======================================== */
+
+async function apiRequest(endpoint, options = {}) {
+
+    const response = await fetch(API_BASE + endpoint, {
+        ...options,
+
+        headers: {
+            "Content-Type": "application/json",
+            ...(options.headers || {})
+        }
+    });
+
+    const text = await response.text();
+
+    let data = {};
+
+    if (text) {
+        try {
+            data = JSON.parse(text);
+        } catch {
+            throw new Error(
+                "The server returned an invalid response."
+            );
+        }
+    }
+
+    if (!response.ok || data.success === false || data.status === false) {
+        throw new Error(
+            data.message ||
+            data.error ||
+            `Request failed (${response.status})`
+        );
+    }
+
+    return data;
 }
 
 
-/* =========================
+/* ========================================
+   Utility Functions
+======================================== */
+
+function showNotification(message, type = "success") {
+
+    if (notificationTimer) {
+        clearTimeout(notificationTimer);
+    }
+
+    notification.textContent = message;
+
+    notification.className = `notification ${type}`;
+
+    notificationTimer = setTimeout(() => {
+        notification.classList.add("hidden");
+    }, 5000);
+}
+
+
+function setLoading(container, message) {
+
+    container.innerHTML = "";
+
+    const element = document.createElement("div");
+
+    element.className = "empty-state";
+    element.textContent = message;
+
+    container.appendChild(element);
+}
+
+
+function createElement(tag, className, text) {
+
+    const element = document.createElement(tag);
+
+    if (className) {
+        element.className = className;
+    }
+
+    if (text !== undefined && text !== null) {
+        element.textContent = String(text);
+    }
+
+    return element;
+}
+
+
+function createButton(label, className, onClick) {
+
+    const button = createElement(
+        "button",
+        `btn ${className}`,
+        label
+    );
+
+    button.type = "button";
+    button.addEventListener("click", onClick);
+
+    return button;
+}
+
+
+function formatDate(value) {
+
+    if (!value) {
+        return "No due date";
+    }
+
+    // Preserve YYYY-MM-DD without timezone shifts.
+    const date = String(value).slice(0, 10);
+
+    const parts = date.split("-");
+
+    if (parts.length !== 3) {
+        return date;
+    }
+
+    return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+
+function dateInputValue(value) {
+
+    if (!value) {
+        return "";
+    }
+
+    return String(value).slice(0, 10);
+}
+
+
+function closeModal(modal) {
+
+    modal.classList.add("hidden");
+
+    if (modal === projectModal) {
+        projectForm.reset();
+        editingProjectId = null;
+    }
+
+    if (modal === taskModal) {
+        taskForm.reset();
+        editingTaskId = null;
+    }
+}
+
+
+/* ========================================
+   Dashboard Navigation
+======================================== */
+
+function showDashboard() {
+
+    currentProject = null;
+
+    projectView.classList.add("hidden");
+    dashboardView.classList.remove("hidden");
+
+    loadProjects();
+}
+
+
+async function showProject(projectId) {
+
+    dashboardView.classList.add("hidden");
+    projectView.classList.remove("hidden");
+
+    $("detailProjectName").textContent = "Loading project...";
+    $("detailProjectDescription").textContent = "";
+
+    setLoading(tasksContainer, "Loading tasks...");
+
+    try {
+
+        const data = await apiRequest(
+            `/projects/${projectId}`
+        );
+
+        // Supports either { project: {...} }
+        // or a directly returned project object.
+        currentProject = data.project || data;
+
+        if (!currentProject || !currentProject.id) {
+            throw new Error("Project not found.");
+        }
+
+        renderProjectDetails();
+
+        await loadTasks();
+
+    } catch (error) {
+
+        console.error(error);
+
+        showNotification(error.message, "error");
+
+        showDashboard();
+    }
+}
+
+
+/* ========================================
    Load Projects
-========================= */
+======================================== */
 
 async function loadProjects() {
 
-    projectsContainer.innerHTML = `
-        <div class="loading">
-            Loading projects...
-        </div>
-    `;
+    setLoading(projectsGrid, "Loading projects...");
 
     try {
-        const response = await fetch("/api/projects");
 
-        if (!response.ok) {
-            throw new Error("Failed to load projects.");
-        }
+        const data = await apiRequest("/projects");
 
-        const data = await response.json();
-        const projects = data.projects || [];
+        projects = data.projects || [];
 
-        renderProjects(projects);
+        $("totalProjects").textContent = projects.length;
+
+        renderProjects();
 
     } catch (error) {
 
         console.error(error);
 
-        projectsContainer.innerHTML = `
-            <div class="empty">
-                Unable to load projects.
-            </div>
-        `;
-
-        showMessage(
-            "Unable to connect to the project API.",
-            "error"
+        setLoading(
+            projectsGrid,
+            "Unable to load projects."
         );
+
+        showNotification(error.message, "error");
     }
 }
 
-/* =========================
-   Render Projects
-========================= */
 
-function renderProjects(projects) {
+/* ========================================
+   Render Projects
+======================================== */
+
+function renderProjects() {
+
+    projectsGrid.innerHTML = "";
 
     if (projects.length === 0) {
 
-        projectsContainer.innerHTML = `
-            <div class="empty">
-                <h3>No projects yet</h3>
-                <p>Create your first project to get started.</p>
-            </div>
-        `;
+        setLoading(
+            projectsGrid,
+            "No projects yet. Create your first project."
+        );
+
         return;
     }
 
-    projectsContainer.innerHTML = "";
+    projects.forEach((project) => {
 
-    projects.forEach(project => {
+        const card = createElement(
+            "article",
+            "project-card"
+        );
 
-        const card = document.createElement("div");
-       
-        card.className = "project-card";
+        const title = createElement(
+            "h3",
+            "",
+            project.name
+        );
 
-        const title = document.createElement("h3");
-      
-        title.textContent = project.name;
+        const description = createElement(
+            "p",
+            "",
+            project.description || "No description provided."
+        );
 
-        const description = document.createElement("p");
+        const footer = createElement(
+            "div",
+            "card-footer"
+        );
 
-        description.className = "project-description";
+        const projectId = createElement(
+            "small",
+            "",
+            `Project #${project.id}`
+        );
 
-        description.textContent =
-            project.description || "No description provided.";
+        const viewButton = createButton(
+            "View Project",
+            "btn-primary btn-small",
+            () => showProject(project.id)
+        );
 
-        const info = document.createElement("div");
+        footer.append(projectId, viewButton);
 
-        info.className = "project-info";
+        card.append(title, description, footer);
 
-        info.textContent =
-            `Project ID: ${project.id}`;
-
-        card.appendChild(title);
-
-        card.appendChild(description);
-
-        card.appendChild(info);
-
-        projectsContainer.appendChild(card);
-
+        projectsGrid.appendChild(card);
     });
 }
 
-/* =========================
-   Open Modal
-========================= */
 
-function openModal() {
-    projectModal.classList.remove("hidden");
-    projectName.focus();
-}
+/* ========================================
+   Project Form
+======================================== */
 
+function openCreateProjectModal() {
 
-/* =========================
-   Close Modal
-========================= */
+    editingProjectId = null;
 
-function closeModal() {
-    projectModal.classList.add("hidden");
     projectForm.reset();
+
+    $("projectModalTitle").textContent = "Create Project";
+    $("saveProjectBtn").textContent = "Create Project";
+
+    projectModal.classList.remove("hidden");
+
+    $("projectName").focus();
 }
 
 
-/* =========================
-   Create Project
-========================= */
+function openEditProjectModal() {
 
-async function createProject(event) {
-
-    event.preventDefault();
-
-    const name = projectName.value.trim();
-
-    const description =
-        projectDescription.value.trim();
-
-    if (!name) {
-        showMessage(
-            "Project name is required.",
-            "error"
-        );
+    if (!currentProject) {
         return;
     }
 
-    createButton.disabled = true;
+    editingProjectId = currentProject.id;
 
-    createButton.textContent = "Creating...";
+    $("projectModalTitle").textContent = "Edit Project";
+    $("saveProjectBtn").textContent = "Save Changes";
 
-    try {
-        const response = await fetch("/api/projects", {
+    $("projectName").value = currentProject.name || "";
 
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({
-                name: name,
-                description: description,
-                owner_id: 1
-            })
-        });
+    $("projectDescription").value =
+        currentProject.description || "";
 
-        const data = await response.json();
+    projectModal.classList.remove("hidden");
 
-        if (!response.ok) {
-            throw new Error(
-                data.message || "Failed to create project."
-            );
-        }
+    $("projectName").focus();
+}
 
-        closeModal();
 
-        showMessage(
-            "Project created successfully!",
-            "success"
+/* ========================================
+   Save Project (Create / Update)
+======================================== */
+
+async function saveProject(event) {
+
+    event.preventDefault();
+
+    const name = $("projectName").value.trim();
+
+    const description =
+        $("projectDescription").value.trim();
+
+    if (!name) {
+
+        showNotification(
+            "Project name is required.",
+            "error"
         );
 
-        await loadProjects();
+        return;
+    }
+
+    const button = $("saveProjectBtn");
+
+    button.disabled = true;
+    button.textContent = "Saving...";
+
+    try {
+
+        if (editingProjectId !== null) {
+
+            const projectId = editingProjectId;
+
+            await apiRequest(
+                `/projects/${projectId}`,
+                {
+                    method: "PUT",
+
+                    body: JSON.stringify({
+                        name,
+                        description,
+                        owner_id: currentProject.owner_id
+                    })
+                }
+            );
+
+            closeModal(projectModal);
+
+            showNotification(
+                "Project updated successfully."
+            );
+
+            await showProject(projectId);
+
+        } else {
+
+            await apiRequest(
+                "/projects",
+                {
+                    method: "POST",
+
+                    body: JSON.stringify({
+                        name,
+                        description,
+                        owner_id: CURRENT_USER_ID
+                    })
+                }
+            );
+
+            closeModal(projectModal);
+
+            showNotification(
+                "Project created successfully."
+            );
+
+            await loadProjects();
+        }
 
     } catch (error) {
 
         console.error(error);
-        showMessage(
-            error.message || "Unable to create project.",
-            "error"
-        );
-    } finally {
-        createButton.disabled = false;
 
-        createButton.textContent = "Create Project";
+        showNotification(error.message, "error");
+
+    } finally {
+
+        button.disabled = false;
+
+        button.textContent =
+            editingProjectId === null
+                ? "Create Project"
+                : "Save Changes";
     }
 }
 
 
-/* =========================
+/* ========================================
+   Delete Project
+======================================== */
+
+async function deleteProject() {
+
+    if (!currentProject) {
+        return;
+    }
+
+    const projectId = currentProject.id;
+
+    const confirmed = confirm(
+        `Delete "${currentProject.name}"?\n\n` +
+        "All tasks in this project will also be deleted. " +
+        "This action cannot be undone."
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    const button = $("deleteProjectBtn");
+
+    button.disabled = true;
+
+    try {
+
+        await apiRequest(
+            `/projects/${projectId}`,
+            {
+                method: "DELETE"
+            }
+        );
+
+        showDashboard();
+
+        showNotification(
+            "Project deleted successfully."
+        );
+
+    } catch (error) {
+
+        console.error(error);
+
+        showNotification(error.message, "error");
+
+    } finally {
+
+        button.disabled = false;
+    }
+}
+
+
+/* ========================================
+   Project Details
+======================================== */
+
+function renderProjectDetails() {
+
+    if (!currentProject) {
+        return;
+    }
+
+    $("detailProjectName").textContent =
+        currentProject.name;
+
+    $("detailProjectDescription").textContent =
+        currentProject.description ||
+        "No description provided.";
+}
+
+
+/* ========================================
+   Load Tasks
+======================================== */
+
+async function loadTasks() {
+
+    if (!currentProject) {
+        return;
+    }
+
+    const projectId = currentProject.id;
+
+    setLoading(tasksContainer, "Loading tasks...");
+
+    try {
+
+        const data = await apiRequest(
+            `/projects/${projectId}/tasks`
+        );
+
+        // Ignore an outdated response if the user
+        // has navigated to another project.
+        if (
+            !currentProject ||
+            currentProject.id !== projectId
+        ) {
+            return;
+        }
+
+        tasks = data.tasks || [];
+
+        updateTaskStats();
+
+        renderTasks();
+
+    } catch (error) {
+
+        console.error(error);
+
+        setLoading(
+            tasksContainer,
+            "Unable to load tasks."
+        );
+
+        showNotification(error.message, "error");
+    }
+}
+
+
+/* ========================================
+   Task Statistics
+======================================== */
+
+function updateTaskStats() {
+
+    $("totalTasks").textContent = tasks.length;
+
+    $("inProgressTasks").textContent =
+        tasks.filter(
+            task => task.status === "IN_PROGRESS"
+        ).length;
+
+    $("completedTasks").textContent =
+        tasks.filter(
+            task => task.status === "DONE"
+        ).length;
+}
+
+
+/* ========================================
+   Render Tasks
+======================================== */
+
+function renderTasks() {
+
+    tasksContainer.innerHTML = "";
+
+    if (tasks.length === 0) {
+
+        setLoading(
+            tasksContainer,
+            "No tasks yet. Add your first task."
+        );
+
+        return;
+    }
+
+    tasks.forEach((task) => {
+
+        const card = createElement(
+            "article",
+            "task-card"
+        );
+
+        const header = createElement(
+            "div",
+            "task-header"
+        );
+
+        const title = createElement(
+            "h4",
+            "",
+            task.title
+        );
+
+        const badges = createElement(
+            "div",
+            "task-badges"
+        );
+
+        const statusLabel = {
+            TODO: "To Do",
+            IN_PROGRESS: "In Progress",
+            DONE: "Done"
+        };
+
+        const status = createElement(
+            "span",
+            `pill status-${task.status}`,
+            statusLabel[task.status] || task.status
+        );
+
+        const priority = createElement(
+            "span",
+            `pill priority-${task.priority}`,
+            task.priority
+        );
+
+        badges.append(status, priority);
+
+        header.append(title, badges);
+
+        const description = createElement(
+            "p",
+            "",
+            task.description || "No description."
+        );
+
+        const footer = createElement(
+            "div",
+            "task-footer"
+        );
+
+        const metadata = createElement(
+            "div",
+            "task-meta"
+        );
+
+        const assigned = task.assigned_user ||
+            (task.assigned_to
+                ? `User #${task.assigned_to}`
+                : "Unassigned");
+
+        const assignee = createElement(
+            "span",
+            "",
+            `Assigned: ${assigned}`
+        );
+
+        const dueDate = createElement(
+            "span",
+            "",
+            `Due: ${formatDate(task.due_date)}`
+        );
+
+        metadata.append(assignee, dueDate);
+
+        const actions = createElement(
+            "div",
+            "button-group"
+        );
+
+        const editButton = createButton(
+            "Edit",
+            "btn-secondary btn-small",
+            () => openEditTaskModal(task)
+        );
+
+        const deleteButton = createButton(
+            "Delete",
+            "btn-danger btn-small",
+            () => deleteTask(task)
+        );
+
+        actions.append(editButton, deleteButton);
+
+        footer.append(metadata, actions);
+
+        card.append(
+            header,
+            description,
+            footer
+        );
+
+        tasksContainer.appendChild(card);
+    });
+}
+
+
+/* ========================================
+   Task Form
+======================================== */
+
+function openCreateTaskModal() {
+
+    if (!currentProject) {
+        return;
+    }
+
+    editingTaskId = null;
+
+    taskForm.reset();
+
+    $("taskStatus").value = "TODO";
+    $("taskPriority").value = "MEDIUM";
+
+    $("taskModalTitle").textContent = "Create Task";
+    $("saveTaskBtn").textContent = "Create Task";
+
+    taskModal.classList.remove("hidden");
+
+    $("taskTitle").focus();
+}
+
+
+function openEditTaskModal(task) {
+
+    editingTaskId = task.id;
+
+    $("taskModalTitle").textContent = "Edit Task";
+    $("saveTaskBtn").textContent = "Save Changes";
+
+    $("taskTitle").value = task.title || "";
+
+    $("taskDescription").value =
+        task.description || "";
+
+    $("taskStatus").value =
+        task.status || "TODO";
+
+    $("taskPriority").value =
+        task.priority || "MEDIUM";
+
+    $("taskAssignedTo").value =
+        task.assigned_to ?? "";
+
+    $("taskDueDate").value =
+        dateInputValue(task.due_date);
+
+    taskModal.classList.remove("hidden");
+
+    $("taskTitle").focus();
+}
+
+
+/* ========================================
+   Save Task (Create / Update)
+======================================== */
+
+async function saveTask(event) {
+
+    event.preventDefault();
+
+    if (!currentProject) {
+        return;
+    }
+
+    const title = $("taskTitle").value.trim();
+
+    if (!title) {
+
+        showNotification(
+            "Task title is required.",
+            "error"
+        );
+
+        return;
+    }
+
+    const assignedValue =
+        $("taskAssignedTo").value.trim();
+
+    const assignedTo = assignedValue
+        ? Number(assignedValue)
+        : null;
+
+    if (
+        assignedTo !== null &&
+        (!Number.isInteger(assignedTo) || assignedTo < 1)
+    ) {
+
+        showNotification(
+            "Assigned User ID must be a positive integer.",
+            "error"
+        );
+
+        return;
+    }
+
+    const payload = {
+
+        title,
+
+        description:
+            $("taskDescription").value.trim(),
+
+        status:
+            $("taskStatus").value,
+
+        priority:
+            $("taskPriority").value,
+
+        assigned_to:
+            assignedTo,
+
+        due_date:
+            $("taskDueDate").value || null
+    };
+
+    const button = $("saveTaskBtn");
+
+    button.disabled = true;
+    button.textContent = "Saving...";
+
+    try {
+
+        if (editingTaskId !== null) {
+
+            await apiRequest(
+                `/tasks/${editingTaskId}`,
+                {
+                    method: "PUT",
+
+                    body: JSON.stringify(payload)
+                }
+            );
+
+            closeModal(taskModal);
+
+            showNotification(
+                "Task updated successfully."
+            );
+
+        } else {
+
+            await apiRequest(
+                `/projects/${currentProject.id}/tasks`,
+                {
+                    method: "POST",
+
+                    body: JSON.stringify(payload)
+                }
+            );
+
+            closeModal(taskModal);
+
+            showNotification(
+                "Task created successfully."
+            );
+        }
+
+        await loadTasks();
+
+    } catch (error) {
+
+        console.error(error);
+
+        showNotification(error.message, "error");
+
+    } finally {
+
+        button.disabled = false;
+
+        button.textContent =
+            editingTaskId === null
+                ? "Create Task"
+                : "Save Changes";
+    }
+}
+
+/* ========================================
+   Delete Task
+======================================== */
+
+async function deleteTask(task) {
+
+    const confirmed = confirm(
+        `Delete task "${task.title}"?\n\n` +
+        "This action cannot be undone."
+    );
+
+    if (!confirmed) {
+        return;
+    }
+
+    try {
+
+        await apiRequest(
+            `/tasks/${task.id}`,
+            {
+                method: "DELETE"
+            }
+        );
+
+        showNotification(
+            "Task deleted successfully."
+        );
+
+        await loadTasks();
+
+    } catch (error) {
+
+        console.error(error);
+        showNotification(error.message, "error");
+    }
+}
+
+/* ========================================
    Event Listeners
-========================= */
+======================================== */
 
-newProjectButton.addEventListener(
+// Dashboard
+$("newProjectBtn").addEventListener(
     "click",
-    openModal
+    openCreateProjectModal
 );
 
-
-closeModalButton.addEventListener(
+$("backBtn").addEventListener(
     "click",
-    closeModal
+    showDashboard
 );
 
-
-cancelButton.addEventListener(
+// Project actions
+$("editProjectBtn").addEventListener(
     "click",
-    closeModal
+    openEditProjectModal
 );
 
+$("deleteProjectBtn").addEventListener(
+    "click",
+    deleteProject
+);
+
+// Project modal
+$("closeProjectModal").addEventListener(
+    "click",
+    () => closeModal(projectModal)
+);
+
+$("cancelProjectBtn").addEventListener(
+    "click",
+    () => closeModal(projectModal)
+);
 
 projectForm.addEventListener(
     "submit",
-    createProject
+    saveProject
 );
 
-/* Close modal when clicking outside */
-
-projectModal.addEventListener(
+// Task actions
+$("newTaskBtn").addEventListener(
     "click",
-    function(event) {
-        if (event.target === projectModal) {
-            closeModal();
+    openCreateTaskModal
+);
+
+// Task modal
+$("closeTaskModal").addEventListener(
+    "click",
+    () => closeModal(taskModal)
+);
+
+$("cancelTaskBtn").addEventListener(
+    "click",
+    () => closeModal(taskModal)
+);
+
+taskForm.addEventListener(
+    "submit",
+    saveTask
+);
+
+// Close modals when clicking outside
+[projectModal, taskModal].forEach((modal) => {
+
+    modal.addEventListener("click", (event) => {
+
+        if (event.target === modal) {
+            closeModal(modal);
+        }
+    });
+});
+
+// Escape key closes modals
+document.addEventListener("keydown", (event) => {
+
+    if (event.key === "Escape") {
+
+        if (!projectModal.classList.contains("hidden")) {
+            closeModal(projectModal);
+        }
+
+        if (!taskModal.classList.contains("hidden")) {
+            closeModal(taskModal);
         }
     }
-);
+});
 
-/* =========================
-   Initial Load
-========================= */
+/* ========================================
+   Start Application
+======================================== */
+
 loadProjects();

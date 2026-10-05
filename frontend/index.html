@@ -3,114 +3,184 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Cloud Project Manager</title>
-
     <link rel="stylesheet" href="style.css">
+    <script src="app.js" defer></script>
 </head>
-
 <body>
-
     <header class="topbar">
-        <div class="container topbar-content">
-            <div>
-                <h1>Cloud Project Manager</h1>
-                <p>Azure-based student project management system</p>
+        <div class="container topbar-inner">
+            <div class="brand">
+                <div class="brand-icon">CP</div>
+                <div>
+                    <h1>Cloud Project Manager</h1>
+                    <p>Student project management</p>
+                </div>
             </div>
+            <span class="cloud-label">Powered by Azure</span>
         </div>
     </header>
 
     <main class="container">
+        <div id="notification" class="notification hidden" role="status"></div>
 
-        <!-- Dashboard Header -->
-        <section class="dashboard-header">
-            <div>
-                <h2>My Projects</h2>
-                <p>Manage your university projects and tasks.</p>
+        <!-- Dashboard -->
+        <section id="dashboardView">
+            <div class="page-heading">
+                <div>
+                    <h2>My Projects</h2>
+                    <p>Organize your projects and track their progress.</p>
+                </div>
+                <button id="newProjectBtn" class="btn btn-primary">
+                    + New Project
+                </button>
             </div>
-            <button id="newProjectButton" class="primary-button">
-                + New Project
+
+            <div class="stats">
+                <div class="stat-card">
+                    <span>Total Projects</span>
+                    <strong id="totalProjects">0</strong>
+                </div>
+                <div class="stat-card">
+                    <span>Workspace</span>
+                    <strong>My Dashboard</strong>
+                </div>
+            </div>
+
+            <div id="projectsGrid" class="projects-grid">
+                <div class="empty-state">Loading projects...</div>
+            </div>
+        </section>
+
+        <!-- Project details -->
+        <section id="projectView" class="hidden">
+            <button id="backBtn" class="back-button">
+                ← Back to Projects
             </button>
-        </section>
 
-        <!-- Status Message -->
-        <div id="message" class="message hidden"></div>
-
-        <!-- Projects -->
-        <section id="projectsContainer" class="projects-grid">
-            <div class="loading">
-                Loading projects...
-            </div>
-        </section>
-
-        <!-- Create Project Modal -->
-        <div id="projectModal" class="modal hidden">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>Create New Project</h2>
-
-                    <button id="closeModalButton" class="close-button">
-                        x
-                    </button>
+            <div class="page-heading">
+                <div>
+                    <h2 id="detailProjectName">Project</h2>
+                    <p id="detailProjectDescription"></p>
                 </div>
 
-                <form id="projectForm">
-
-                    <div class="form-group">
-                        <label for="projectName">
-                            Project Name
-                        </label>
-
-                        <input
-                            type="text"
-                            id="projectName"
-                            placeholder="Enter project name"
-                            required
-                        >
-                    </div>
-
-                    <div class="form-group">
-                        <label for="projectDescription">
-                            Description
-                        </label>
-
-                        <textarea
-                            id="projectDescription"
-                            rows="5"
-                            placeholder="Describe your project"
-                        ></textarea>
-                    </div>
-
-                    <div class="form-actions">
-
-                        <button
-                            type="button"
-                            id="cancelButton"
-                            class="secondary-button"
-                        >
-                            Cancel
-                        </button>
-
-                        <button
-                            type="submit"
-                            id="createButton"
-                            class="primary-button"
-                        >
-                            Create Project
-                        </button>
-                    </div>
-                </form>
+                <div class="button-group">
+                    <button id="editProjectBtn" class="btn btn-secondary">
+                        Edit Project
+                    </button>
+                    <button id="deleteProjectBtn" class="btn btn-danger">
+                        Delete Project
+                    </button>
+                </div>
             </div>
-        </div>
+
+            <div class="stats">
+                <div class="stat-card">
+                    <span>Total Tasks</span>
+                    <strong id="totalTasks">0</strong>
+                </div>
+                <div class="stat-card">
+                    <span>In Progress</span>
+                    <strong id="inProgressTasks">0</strong>
+                </div>
+                <div class="stat-card">
+                    <span>Completed</span>
+                    <strong id="completedTasks">0</strong>
+                </div>
+            </div>
+
+            <div class="section-heading">
+                <h3>Tasks</h3>
+                <button id="newTaskBtn" class="btn btn-primary">
+                    + Add Task
+                </button>
+            </div>
+
+            <div id="tasksContainer" class="tasks-container">
+                <div class="empty-state">Loading tasks...</div>
+            </div>
+        </section>
     </main>
 
+    <!-- Project form modal -->
+    <div id="projectModal" class="modal hidden">
+        <div class="modal-panel">
+            <div class="modal-heading">
+                <h3 id="projectModalTitle">New Project</h3>
+                <button id="closeProjectModal" class="icon-button"
+                    aria-label="Close">×</button>
+            </div>
 
-    <footer>
-        <p>Cloud Project Manager • Azure</p>
-    </footer>
+            <form id="projectForm">
+                <label for="projectName">Project Name</label>
+                <input id="projectName" type="text" maxlength="150" required>
 
+                <label for="projectDescription">Description</label>
+                <textarea id="projectDescription" rows="4"></textarea>
 
-    <script src="app.js"></script>
+                <div class="form-actions">
+                    <button type="button" id="cancelProjectBtn"
+                        class="btn btn-secondary">Cancel</button>
+                    <button type="submit" id="saveProjectBtn"
+                        class="btn btn-primary">Save Project</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
+    <!-- Task form modal -->
+    <div id="taskModal" class="modal hidden">
+        <div class="modal-panel">
+            <div class="modal-heading">
+                <h3 id="taskModalTitle">New Task</h3>
+                <button id="closeTaskModal" class="icon-button"
+                    aria-label="Close">×</button>
+            </div>
+
+            <form id="taskForm">
+                <label for="taskTitle">Task Title</label>
+                <input id="taskTitle" type="text" maxlength="200" required>
+
+                <label for="taskDescription">Description</label>
+                <textarea id="taskDescription" rows="3"></textarea>
+
+                <div class="form-row">
+                    <div>
+                        <label for="taskStatus">Status</label>
+                        <select id="taskStatus">
+                            <option value="TODO">To Do</option>
+                            <option value="IN_PROGRESS">In Progress</option>
+                            <option value="DONE">Done</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="taskPriority">Priority</label>
+                        <select id="taskPriority">
+                            <option value="LOW">Low</option>
+                            <option value="MEDIUM" selected>Medium</option>
+                            <option value="HIGH">High</option>
+                        </select>
+                    </div>
+                </div>
+
+                <label for="taskAssignedTo">Assigned User ID (optional)</label>
+                <input id="taskAssignedTo" type="number" min="1"
+                    placeholder="e.g. 1">
+
+                <label for="taskDueDate">Due Date (optional)</label>
+                <input id="taskDueDate" type="date">
+
+                <div class="form-actions">
+                    <button type="button" id="cancelTaskBtn"
+                        class="btn btn-secondary">Cancel</button>
+                    <button type="submit" id="saveTaskBtn"
+                        class="btn btn-primary">Save Task</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <footer>Cloud Project Manager · Microsoft Azure</footer>
 </body>
 </html>

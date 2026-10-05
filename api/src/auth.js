@@ -1,3 +1,8 @@
+const {
+    sql,
+    getDatabaseConnection
+} = require("./database");
+
 function getClientPrincipal(request) {
 
     const header =
@@ -40,10 +45,54 @@ function requireAuthenticatedUser(request) {
     if (!roles.includes("authenticated")) {
         return null;
     }
+
     return principal;
+}
+
+async function getCurrentUser(request) {
+
+    const principal =
+        requireAuthenticatedUser(request);
+
+    if (!principal) {
+        return null;
+    }
+
+    const pool =
+        await getDatabaseConnection();
+
+    const result =
+        await pool
+            .request()
+            .input(
+                "githubId",
+                sql.NVarChar(255),
+                principal.userId
+            )
+            .query(`
+                SELECT
+                    id,
+                    name,
+                    email,
+                    github_id,
+                    created_at,
+                    updated_at
+                FROM Users
+                WHERE github_id = @githubId
+            `);
+
+    if (result.recordset.length === 0) {
+        return null;
+    }
+
+    return {
+        principal,
+        user: result.recordset[0]
+    };
 }
 
 module.exports = {
     getClientPrincipal,
-    requireAuthenticatedUser
+    requireAuthenticatedUser,
+    getCurrentUser
 };

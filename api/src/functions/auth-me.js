@@ -1,7 +1,7 @@
 const { app } = require("@azure/functions");
 
 const {
-    requireAuthenticatedUser
+    getCurrentUser
 } = require("../auth");
 
 app.http("auth-me", {
@@ -16,45 +16,42 @@ app.http("auth-me", {
 
         try {
 
-            const principal =
-                requireAuthenticatedUser(request);
+            const currentUser =
+                await getCurrentUser(request);
 
-            if (!principal) {
+            if (!currentUser) {
 
                 return {
                     status: 401,
 
                     jsonBody: {
                         success: false,
-                        message: "Authentication required"
+                        message:
+                            "Authenticated user is not registered."
                     }
                 };
             }
 
             return {
-
                 status: 200,
 
                 jsonBody: {
-
                     success: true,
-
                     user: {
-
+                        id:
+                            currentUser.user.id,
+                        name:
+                            currentUser.user.name,
+                        email:
+                            currentUser.user.email,
                         provider:
-                            principal.identityProvider,
-
-                        userId:
-                            principal.userId,
-
+                            currentUser.principal.identityProvider,
+                        github_id:
+                            currentUser.user.github_id,
                         username:
-                            principal.userDetails,
-
+                            currentUser.principal.userDetails,
                         roles:
-                            principal.userRoles,
-
-                        claims:
-                            principal.claims || []
+                            currentUser.principal.userRoles
                     }
                 }
             };
@@ -62,7 +59,7 @@ app.http("auth-me", {
         } catch (error) {
 
             context.error(
-                "Authentication error:",
+                "Authentication lookup error:",
                 error
             );
 
@@ -72,9 +69,8 @@ app.http("auth-me", {
 
                 jsonBody: {
                     success: false,
-                    message: "Authentication processing failed",
-                    error: error.message,
-                    code: error.code || null
+                    message:
+                        "Failed to identify current user."
                 }
             };
         }

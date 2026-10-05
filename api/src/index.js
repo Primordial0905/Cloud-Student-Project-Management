@@ -12,3 +12,5 @@ require("./functions/project-tasks");
 require("./functions/task-create");
 require("./functions/task-update");
 require("./functions/task-delete");
+
+require("./functions/auth-me");

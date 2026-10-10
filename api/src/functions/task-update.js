@@ -51,21 +51,94 @@ app.http("task-update", {
                 };
             }
 
-            const body =
-                await request.json();
+            let body;
 
-            if (
-                !body.title ||
-                !body.title.trim()
-            ) {
-
+            try {
+                body = await request.json();
+            } catch {
                 return {
                     status: 400,
                     jsonBody: {
                         success: false,
-                        message: "Task title is required"
+                        message: "Request body must contain valid JSON"
                     }
                 };
+            }
+
+            if (
+                typeof body.title !== "string" ||
+                !body.title.trim() ||
+                body.title.trim().length > 200
+            ) {
+                return {
+                    status: 400,
+                    jsonBody: {
+                        success: false,
+                        message: "Task title is required and must be at most 200 characters"
+                    }
+                };
+            }
+
+            const validStatuses = ["TODO", "IN_PROGRESS", "DONE"];
+            const validPriorities = ["LOW", "MEDIUM", "HIGH"];
+
+            const status = body.status === undefined ? "TODO" : body.status;
+            const priority = body.priority === undefined ? "MEDIUM" : body.priority;
+
+            if (typeof status !== "string" || !validStatuses.includes(status)) {
+                return {
+                    status: 400,
+                    jsonBody: {
+                        success: false,
+                        message: "Invalid task status. Allowed values: TODO, IN_PROGRESS, DONE"
+                    }
+                };
+            }
+
+            if (typeof priority !== "string" || !validPriorities.includes(priority)) {
+                return {
+                    status: 400,
+                    jsonBody: {
+                        success: false,
+                        message: "Invalid task priority. Allowed values: LOW, MEDIUM, HIGH"
+                    }
+                };
+            }
+
+            if (
+                body.description !== undefined &&
+                body.description !== null &&
+                typeof body.description !== "string"
+            ) {
+                return {
+                    status: 400,
+                    jsonBody: {
+                        success: false,
+                        message: "Description must be a string"
+                    }
+                };
+            }
+
+            if (
+                body.due_date !== undefined &&
+                body.due_date !== null &&
+                body.due_date !== ""
+            ) {
+                const date = body.due_date;
+                const parsed = typeof date === "string" &&
+                    /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+                    !Number.isNaN(Date.parse(date)) &&
+                    new Date(date).toISOString().slice(0, 10) === date;
+            
+                if (!parsed) {
+                    return {
+                        status: 400,
+                        jsonBody: {
+                            success: false,
+                            message: "Invalid due date. Use YYYY-MM-DD."
+                        }
+                    };
+                }
             }
 
             const pool =
@@ -97,12 +170,12 @@ app.http("task-update", {
                     .input(
                         "status",
                         sql.NVarChar(20),
-                        body.status || "TODO"
+                        status
                     )
                     .input(
                         "priority",
                         sql.NVarChar(20),
-                        body.priority || "MEDIUM"
+                        priority
                     )
                     .input(
                         "assignedTo",

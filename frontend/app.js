@@ -23,6 +23,7 @@ let notificationTimer = null;
 ======================================== */
 
 const $ = (id) => document.getElementById(id);
+const logoutButton = document.getElementById("logoutButton");
 
 const dashboardView = $("dashboardView");
 const projectView = $("projectView");
@@ -1383,30 +1384,15 @@ taskForm.addEventListener(
 );
 
 
-(function addLogoutButton() {
-    if (document.getElementById("logoutButton")) {
-        return;
-    }
-
-    const button = document.createElement("button");
-    button.id = "logoutButton";
-    button.type = "button";
-    button.textContent = "Log out";
-
-    button.style.cssText =
-        "position:fixed;top:16px;right:16px;z-index:1000;" +
-        "padding:10px 16px;cursor:pointer;";
-
-    button.addEventListener("click", function () {
+if (logoutButton) {
+    logoutButton.addEventListener("click", function () {
         window.location.href =
             "/.auth/logout?post_logout_redirect_uri=" +
             encodeURIComponent(
                 window.location.origin + "/logged-out.html"
             );
     });
-
-    document.body.appendChild(button);
-})();
+}
 
 
 document.addEventListener(

@@ -36,6 +36,20 @@ body {
     padding: 20px 0;
 }
 
+.topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+#logoutButton {
+    padding: 8px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    font: inherit;
+}
+
 .topbar-inner,
 .brand,
 .page-heading,

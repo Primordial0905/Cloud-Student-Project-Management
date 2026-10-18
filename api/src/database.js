@@ -11,7 +11,7 @@ const config = {
         trustServerCertificate: false
     },
 
-    connectionTimeout: 60000
+    connectionTimeout: 15000
 };
 
 let poolPromise = null;

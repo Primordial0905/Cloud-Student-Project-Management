@@ -69,9 +69,10 @@ app.http("auth-me", {
 
                 jsonBody: {
                     success: false,
-                    message:
-                        "Failed to identify current user."
+                    message: "Failed to identify current user.",
+                    debug: `${error.code || ""} ${error.message}` 
                 }
+
             };
         }
     }

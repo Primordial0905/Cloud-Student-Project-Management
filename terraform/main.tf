@@ -1,4 +1,19 @@
 
+data "http" "my_ip" {
+  url = "https://api.ipify.org"
+}
+
+locals {
+  my_ip = chomp(data.http.my_ip.response_body)
+}
+
+resource "azurerm_mssql_firewall_rule" "my_ip" {
+  name             = "terraform-runner"
+  server_id        = azurerm_mssql_server.main.id
+  start_ip_address = local.my_ip
+  end_ip_address   = local.my_ip
+}
+
 resource "azurerm_resource_group" "main" {
   name     = var.resource_group_name
   location = var.location
@@ -12,10 +27,10 @@ resource "azurerm_static_web_app" "main" {
   sku_size            = "Free"
 
     app_settings = {
-    DB_SERVER   = azurerm_mssql_server.main.fully_qualified_domain_name
-    DB_NAME     = azurerm_mssql_database.main.name
-    DB_USER     = var.sql_admin_username
-    DB_PASSWORD = var.sql_admin_password
+    SQL_Server   = azurerm_mssql_server.main.fully_qualified_domain_name
+    SQL_Database     = azurerm_mssql_database.main.name
+    SQL_User     = var.sql_admin_username
+    SQL_Password = var.sql_admin_password
   }
 }
 

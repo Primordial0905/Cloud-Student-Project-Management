@@ -1,3 +1,4 @@
+const { NVarChar } = require("mssql");
 const {
     sql,
     getDatabaseConnection
@@ -82,7 +83,18 @@ async function getCurrentUser(request) {
             `);
 
     if (result.recordset.length === 0) {
-        return null;
+        const inserted  = await pool
+        .request()
+        .input("githubId", sql.NVarChar(255), principal.userId)
+        .input("name", sql.NVarChar(100), principal.userDetails)
+        .query(`
+            INSERT INTO Users (name, github_id)
+            OUTPUT INSERTED.id, INSERTED.name, INSERTED.email,
+                   INSERTED.github_id, INSERTED.created_at, INSERTED.updated_at
+            VALUES (@name, @githubId) 
+            `);
+        
+        return {principal, user : inserted.recordset[0]}; 
     }
 
     return {

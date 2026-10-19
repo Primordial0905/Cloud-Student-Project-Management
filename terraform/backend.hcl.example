@@ -1,0 +1,5 @@
+resource_group_name  = "rg-terraform-state"
+storage_account_name = "<your-unique-storage-account-name>"
+container_name       = "tfstate"
+key                  = "cloud-student-manager.tfstate"
+use_azuread_auth     = true

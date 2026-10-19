@@ -1,0 +1,14 @@
+subscription_id = "<your-azure-subscription-id>"
+location            = "centralindia"
+resource_group_name = "rg-cloud-project-manager"
+
+static_web_app_name = "<unique-static-web-app-name>"
+sql_server_name   = "<unique-sql-server-name>"
+sql_database_name = "cloudprojectdb"
+
+sql_admin_username = "<sql-admin-username>"
+sql_admin_password = "<strong-password>"
+
+github_owner = "<your-github-username>"
+github_repo  = "<your-repo-name>"
+github_token = "<github_pat_...>"

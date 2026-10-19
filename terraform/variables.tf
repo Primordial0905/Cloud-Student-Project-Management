@@ -49,3 +49,19 @@ variable "sql_admin_password" {
   type        = string
   sensitive   = true
 }
+
+variable "github_owner" {
+  description = "GitHub user or organization that owns the repo."
+  type        = string
+}
+
+variable "github_repo" {
+  description = "Repository name (without the owner)."
+  type        = string
+}
+
+variable "github_token" {
+  description = "GitHub token that can write Actions secrets on the repo."
+  type        = string
+  sensitive   = true
+}

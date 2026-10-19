@@ -1,6 +1,6 @@
-.terraform/
+terraform.tfvars
+backend.hcl
 *.tfstate
 *.tfstate.*
-*.tfvars
-*.tfplan
-crash.log
+.terraform/
+tfplan

@@ -61,3 +61,23 @@ resource "azurerm_mssql_database" "main" {
   auto_pause_delay_in_minutes = 15
   max_size_gb                 = 32
 }
+resource "terraform_data" "schema" {
+  triggers_replace = filesha256("${path.module}/schema.sql")
+
+  provisioner "local-exec" {
+    command = "sqlcmd -S ${azurerm_mssql_server.main.fully_qualified_domain_name} -d ${azurerm_mssql_database.main.name} -U ${var.sql_admin_username} -i \"${path.module}/schema.sql\" -b"
+    environment = {
+      SQLCMDPASSWORD = var.sql_admin_password
+    }
+  }
+
+  depends_on = [
+    azurerm_mssql_database.main,
+    azurerm_mssql_firewall_rule.my_ip,
+  ]
+}
+resource "github_actions_secret" "swa_token" {
+  repository      = var.github_repo
+  secret_name     = "AZURE_STATIC_WEB_APPS_API_TOKEN_WHITE_GRASS_023B8E400"
+  plaintext_value = azurerm_static_web_app.main.api_key
+}
